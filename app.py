@@ -1,101 +1,70 @@
+from rich import print
+from nicegui import app, ui
+import time
 import asyncio
-import flet as ft
+
+async def reset():
+	start_button.text = "Start"
+	minute_label.set_text("00:")
+	second_label.set_text("00")
+	milis_label.set_text(".0")
+	round_label.set_text(f"Rounds: 0 / {rounds.value}")
+
+async def countdown(t, type):
+	for i in range(t-1, -1, -1):
+		if start_button.text == "Start":			
+			return 
+		if i == 50:
+			ui.audio('countdown.wav', autoplay=True, controls=False)
+		if i == 10 and type == "rest":
+			ui.audio('work.mp3', autoplay=True, controls=False)
+		minute_label.set_text(f"{i//600:02d}:")
+		second_label.set_text(f"{i//10:02d}")
+		milis_label.set_text(f".{i%10}")
+		ui.update()		
+		await asyncio.sleep(0.1)
+
+async def main():
+	if start_button.text == "Start":
+		start_button.text = "Stop"
+		while True:		
+			w = int(work_time.value)*10
+			r = int(rest_time.value)*10
+			ro = int(rounds.value)	
+			for round in range(1, ro+1):
+				if start_button.text == "Start":			
+					break
+				round_label.set_text(f"Rounds: {round} / {ro}")
+				await countdown(w, "work")
+				await countdown(r, "rest")
+				if round == ro:
+					ui.audio('done.mp3', autoplay=True, controls=False)
+			await reset()
+			break		
+	else:
+		start_button.text = "Start"
 
 
-async def start_tabata_timer(event):
-	page = event.page
-	if page.timer_task is not None:
-		page.timer_task.cancel()
-	work_duration = int(page.work_duration_input.value)
-	rest_duration = int(page.rest_duration_input.value)
-	rounds = int(page.rounds_input.value)
-
-	page.timer_task = asyncio.create_task(run_timer(page, work_duration, rest_duration, rounds))
-	await page.timer_task
-
-
-async def run_timer(page, work_duration, rest_duration, rounds):
-	for cycle in range(1, rounds + 1):
-		page.current_cycle_label.value = f"Round {cycle} / {rounds}"
-		await page.update_async()
-
-		for remaining in range(work_duration, -1, -1):
-			page.timer_label.value = f"Work: {remaining}s"
-			await page.update_async()
-			await asyncio.sleep(1)
-
-		for remaining in range(rest_duration, -1, -1):
-			page.timer_label.value = f"Rest: {remaining}s"
-			await page.update_async()
-			await asyncio.sleep(1)
-
-	page.timer_label.value = "Tabata Completed!"
-	await page.update_async()
+with ui.column().style('align-items: center; justify-content: center;'):
+	with ui.row().style('align-items: stretch; justify-content: center;'):
+		minute_label = ui.label("00:")
+		minute_label.style('font-size: 750%; font-weight: bold')
+		second_label = ui.label("00")
+		second_label.style('font-size: 750%; font-weight: bold; margin-left: -5%')
+		milis_label = ui.label(".0")
+		milis_label.style('font-size: 350%; font-weight: bold; align-self: end; margin-bottom: 7%; margin-left: -5%')
+	round_label = ui.label().style('font-size: 250%; font-weight: bold')
+	work_time = ui.input(label='Work', placeholder="20", value="20")
+	work_time.props('input-style="font-size: 150%; width: 80%; text-align: right; "')
+	rest_time = ui.input(label='Rest', placeholder="10", value="10")
+	rest_time.props('input-style="font-size: 150%; width: 80%; text-align: right"')
+	rounds = ui.input(label='Rounds', placeholder="8", value="8")
+	rounds.props('input-style="font-size: 150%; width: 80%; text-align: right"')
+	round_label.set_text(f"Rounds: 0 / {rounds.value}")
+	start_button = ui.button('Start', on_click=lambda: main())
+	start_button.style('width: 80%; height: 80%')
 
 
-async def on_start_button_click(e):
-	await start_tabata_timer(e)
-
-
-async def on_reset_button_click(e):
-	page = e.page
-	page.timer_label.value = "Ready?"
-	page.current_cycle_label.value = ""
-	if page.timer_task is not None:
-		page.timer_task.cancel()
-	await page.update_async()
-
-async def main(page: ft.Page):
-	page.title = "Tabata Timer"
-	page.window_width = 400
-	page.window_height = 300
-	page.window_resizable = False
-	page.timer_task = None
-
-	main_row = ft.Row(width=page.window_width, tight=True)
-	timer_column = ft.Column(tight=False, width=page.window_width * 0.4)
-	controls_column = ft.Column(tight=True, width=page.window_width * 0.6)
-
-	page.work_duration_input = ft.TextField(
-		autofocus=True, hint_text="Work Duration (s)", value="20", dense=True, width=page.window_width * 0.5
-		)
-	page.rest_duration_input = ft.TextField(
-		autofocus=True, hint_text="Rest Duration (s)", value="10", dense=True, width=page.window_width * 0.5
-		)
-	page.rounds_input = ft.TextField(
-		autofocus=True, hint_text="Rounds", value="8", dense=True, width=page.window_width * 0.5
-		)
-
-	start_button_content = ft.Text("Start", color=ft.colors.WHITE, weight=ft.FontWeight.BOLD)
-	start_button = ft.Container(
-		content=start_button_content, bgcolor=ft.colors.GREEN, on_click=on_start_button_click, width=100, height=50,
-		alignment=ft.alignment.center, border_radius=10
-		)
-
-	reset_button_content = ft.Text("Reset", color=ft.colors.WHITE, weight=ft.FontWeight.BOLD)
-	reset_button = ft.Container(
-		content=reset_button_content, bgcolor=ft.colors.RED, on_click=on_reset_button_click, width=100, height=50,
-		alignment=ft.alignment.center, border_radius=10
-		)
-
-	page.timer_label = ft.Text(
-		"Ready?", size=30, text_align=ft.TextAlign.CENTER, weight=ft.FontWeight.BOLD, color=ft.colors.BLUE_600
-	)
-	page.current_cycle_label = ft.Text(
-		"", size=16, text_align=ft.TextAlign.CENTER, weight=ft.FontWeight.W_500, color=ft.colors.GREEN_700
-	)
-
-	button_row = ft.Row(
-		tight=True, wrap=False, controls=[start_button, reset_button], alignment=ft.MainAxisAlignment.SPACE_EVENLY,
-		width=page.window_width * 0.5
-		)
-
-	timer_column.controls = [page.timer_label, page.current_cycle_label]
-	controls_column.controls = [page.work_duration_input, page.rest_duration_input, page.rounds_input, button_row]
-	main_row.controls = [timer_column, controls_column]
-	await page.add_async(main_row)
-	await page.update_async()
-
-
-if __name__ == "__main__":
-	ft.app(target=main)
+app.native.window_args['resizable'] = False
+# app.native.start_args['debug'] = True
+ui.run(native=True,window_size=(400, 575), title="Tabata Timer", reload=False)
