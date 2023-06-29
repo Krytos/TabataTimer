@@ -7,12 +7,12 @@ This is a simple Tabata Timer I created for personal use. Feel free to use it as
 
 ## Requirements
 
-- Python 3.x
+- Python 3.11
 - nicegui library
 
 ## Installation
 
-1. Make sure you have Python 3.x installed on your system.
+1. Make sure you have Python 3.11 installed on your system.
 2. Install the nicegui library by running the following command:
 
 ```shell
